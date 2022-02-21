@@ -1,0 +1,75 @@
+version: '3'
+
+
+
+services:
+  api:
+    image: vikunja/api
+    container_name: vikunja-api
+    restart: always
+    environment:
+      VIKUNJA_DATABASE_HOST: ${VIKUNJA_DATABASE_HOST}
+      VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
+      VIKUNJA_DATABASE_TYPE: ${VIKUNJA_DATABASE_TYPE}
+      VIKUNJA_DATABASE_USER: ${VIKUNJA_DATABASE_USER}
+      VIKUNJA_DATABASE_DATABASE: ${VIKUNJA_DATABASE_DATABASE}
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: ${VIKUNJA_SERVICE_ENABLEREGISTRATION}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_default"
+      - "traefik.http.routers.vikunja-api.entrypoints=websecure"
+      - "traefik.http.routers.vikunja-api.rule=Host(`${VIKUNJA_DOMAIN}`) && PathPrefix(`/api/v1`, `/dav/`, `/.well-known/`)"
+      - "traefik.http.routers.vikunja-api.tls=true"
+      - "traefik.http.routers.vikunja-api.tls.certResolver=${TLS_RESOLVER}"
+    volumes:
+      - files:/app/vikunja/files
+    networks:
+      - proxy
+      - default
+    depends_on:
+      - db
+
+
+
+  frontend:
+    image: vikunja/frontend
+    container_name: vikunja-frontend
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_default"
+      - "traefik.http.routers.vikunja-frontend.entrypoints=websecure"
+      - "traefik.http.routers.vikunja-frontend.rule=Host(`${VIKUNJA_DOMAIN}`)"
+      - "traefik.http.routers.vikunja-frontend.tls=true"
+      - "traefik.http.routers.vikunja-frontend.tls.certResolver=${TLS_RESOLVER}"
+    networks:
+      - proxy
+      - default
+
+
+
+  db:
+    image: mariadb:10
+    container_name: vikunja-db
+    restart: always
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-connections=1000
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - db:/var/lib/mysql
+
+
+
+volumes:
+  files:
+  db:
+
+
+networks:
+  proxy:
+    name: traefik_default
+  default:
+    name: vikunja_default
